@@ -83,6 +83,17 @@ def save_monthly_data():
     data = request.json
     month = data.get("month")
     members = data.get("members", [])
+    import datetime
+
+    # prevent adding records for past months
+    current_month = datetime.datetime.now().strftime("%B %Y")
+    months_order = [
+        "January 2025", "February 2025", "March 2025", "April 2025", "May 2025",
+        "June 2025", "July 2025", "August 2025", "September 2025", "October 2025",
+        "November 2025", "December 2025"
+    ]
+    if months_order.index(month) < months_order.index(current_month):
+        return jsonify({"error": "Cannot add data for past months."}), 400
 
     for m in members:
         member_id = m.get("id")
@@ -162,7 +173,12 @@ def init_february():
     data = request.json
     members = data.get("members", [])
     for m in members:
-        cur.execute("INSERT INTO members (name, shares) VALUES (%s, %s) ON CONFLICT (name) DO NOTHING", (m["name"], m["shares"]))
+        cur.execute("""
+            INSERT INTO members (name, shares)
+            VALUES (%s, %s)
+            ON CONFLICT (name) DO UPDATE SET shares = EXCLUDED.shares
+        """, (m["name"], m["shares"]))
+
     conn.commit()
 
     handle_february_share_loans(members)
