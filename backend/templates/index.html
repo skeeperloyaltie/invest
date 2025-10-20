@@ -182,6 +182,43 @@
     </div>
   </div>
 
+  <!-- Add Shares Modal -->
+<div class="modal fade" id="addSharesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="addSharesForm">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title">Add Shares</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="addSharesMemberId" />
+          <div class="mb-3">
+            <label for="addSharesAmount" class="form-label">Amount (Ksh)</label>
+            <input type="number" id="addSharesAmount" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label for="addSharesMonth" class="form-label">Month</label>
+            <select id="addSharesMonth" class="form-select" required>
+              <option>October 2025</option>
+              <option>November 2025</option>
+              <option>December 2025</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="addSharesPassword" class="form-label">Admin Password</label>
+            <input type="password" id="addSharesPassword" class="form-control" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-warning">💰 Add Shares</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
   <!-- JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
@@ -206,6 +243,7 @@
             <td>${m.shares}</td>
             <td class="text-center">
               <button class="btn btn-sm btn-success me-2" onclick="openUpdate(${m.id}, '${m.name}', ${m.shares})">✏️ Edit</button>
+              <button class="btn btn-sm btn-warning me-2" onclick="openAddShares(${m.id}, '${m.name}')">💰 Add Shares</button>
               <button class="btn btn-sm btn-danger" onclick="openDelete(${m.id})">🗑️ Delete</button>
             </td>
           </tr>`;
@@ -262,6 +300,37 @@
       alert(data.message || data.error);
       if (res.ok) deleteModal.hide();
     });
+
+    const addSharesModal = new bootstrap.Modal(document.getElementById("addSharesModal"));
+
+      window.openAddShares = (id, name) => {
+        document.getElementById("addSharesMemberId").value = id;
+        document.getElementById("addSharesAmount").value = "";
+        document.getElementById("addSharesPassword").value = "";
+        addSharesModal.show();
+      };
+
+      document.getElementById("addSharesForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const member_id = document.getElementById("addSharesMemberId").value;
+        const amount = document.getElementById("addSharesAmount").value;
+        const month = document.getElementById("addSharesMonth").value;
+        const password = document.getElementById("addSharesPassword").value;
+
+        const res = await fetch(`/api/member/add-shares/${member_id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount, month, password }),
+        });
+
+        const data = await res.json();
+        alert(data.message || data.error);
+        if (res.ok) {
+          addSharesModal.hide();
+          manageBtn.click(); // refresh member list
+        }
+      });
+
   </script>
 </body>
 </html>

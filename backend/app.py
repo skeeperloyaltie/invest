@@ -8,7 +8,7 @@ CORS(app)
 # --- Database connection ---
 conn = psycopg2.connect(
     dbname="investandgrow",
-    user="postgres",
+    user="skeeperloyaltie",
     password="1391",
     host="localhost",
     port="5432"
@@ -50,6 +50,16 @@ def create_tables():
         remarks TEXT
     );
     """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS share_additions (
+        id SERIAL PRIMARY KEY,
+        member_id INTEGER REFERENCES members(id),
+        amount NUMERIC NOT NULL,
+        month VARCHAR(50),
+        date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
     conn.commit()
 
 create_tables()
@@ -250,6 +260,31 @@ def total_summary():
         "total_interest": float(i),
         "total_repayments": float(r)
     })
+    
+@app.route("/api/member/add-shares/<int:member_id>", methods=["POST"])
+def add_shares(member_id):
+    data = request.json
+    amount = float(data.get("amount", 0))
+    month = data.get("month")
+    password = data.get("password")
+
+    if password != "admin123":
+        return jsonify({"error": "Invalid password"}), 403
+
+    if amount <= 0:
+        return jsonify({"error": "Share amount must be greater than 0"}), 400
+
+    # Update total shares
+    cur.execute("UPDATE members SET shares = shares + %s WHERE id=%s", (amount, member_id))
+    # Record the addition
+    cur.execute("""
+        INSERT INTO share_additions (member_id, amount, month)
+        VALUES (%s, %s, %s)
+    """, (member_id, amount, month))
+    conn.commit()
+
+    return jsonify({"message": f"Successfully added Ksh {amount} shares for member {member_id}"}), 200
+
 
 # --- Run app ---
 if __name__ == "__main__":
