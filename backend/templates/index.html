@@ -1,336 +1,291 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Table Banking Records</title>
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table Banking Records</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-
 <body class="bg-light">
-  <div class="container py-4">
-    <h1 class="text-center mb-4">INVEST & GROW Table Banking Records</h1>
+    <div class="container py-4">
+        <h1 class="text-center mb-4">Invest & Grow Table Banking Records</h1>
 
-    <!-- Month Selection -->
-    <div class="card mb-3 p-3">
-      <div class="d-flex justify-content-between align-items-center flex-wrap">
-        <div>
-          <label for="monthSelect" class="form-label">Select Month</label>
-          <select id="monthSelect" class="form-select w-auto d-inline-block">
-            <option value="February 2025">February 2025 (Share Capital)</option>
-            <option value="March 2025">March 2025</option>
-            <option value="April 2025">April 2025</option>
-            <option value="May 2025">May 2025</option>
-            <option value="June 2025">June 2025</option>
-            <option value="July 2025">July 2025</option>
-            <option value="August 2025">August 2025</option>
-            <option value="September 2025">September 2025</option>
-            <option value="October 2025" selected>October 2025</option>
-          </select>
-        </div>
-        <div>
-          <button id="manageMembersBtn" class="btn btn-outline-primary">
-            👥 Manage Members
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Banking Form -->
-    <form id="bankingForm" class="card p-3 shadow-sm">
-      <div class="table-responsive">
-        <table class="table table-bordered align-middle">
-          <thead class="table-dark text-center">
-            <tr>
-              <th>Member</th>
-              <th>Shares (Ksh)</th>
-              <th>Emergency (Ksh)</th>
-              <th>Loan (Ksh)</th>
-              <th>Loan Type</th>
-              <th>Repayment (Ksh)</th>
-              <th>Interest (Ksh)</th>
-              <th>Total Payable (Ksh)</th>
-            </tr>
-          </thead>
-          <tbody id="membersTable"></tbody>
-        </table>
-      </div>
-
-      <div class="text-end">
-        <button type="submit" class="btn btn-success">
-          💾 Save Monthly Data
-        </button>
-      </div>
-    </form>
-
-    <!-- Totals Summary -->
-    <!-- Totals Section -->
-<div class="row mt-4">
-  <!-- Monthly Summary -->
-  <div class="col-md-6">
-    <div id="totals" class="card p-3 shadow-sm">
-      <h4>📅 Monthly Summary (<span id="monthLabel">October 2025</span>)</h4>
-      <ul class="list-group">
-        <li class="list-group-item">Total Shares: <strong id="totalShares">0</strong></li>
-        <li class="list-group-item">Total Emergency: <strong id="totalEmergency">0</strong></li>
-        <li class="list-group-item">Total Loans: <strong id="totalLoans">0</strong></li>
-        <li class="list-group-item">Total Interest: <strong id="totalInterest">0</strong></li>
-        <li class="list-group-item">Total Repayments: <strong id="totalRepayments">0</strong></li>
-      </ul>
-    </div>
-  </div>
-
-  <!-- Total Accumulative Summary -->
-  <div class="col-md-6">
-    <div id="totalSummary" class="card p-3 shadow-sm">
-      <h4>📊 Accumulative Summary (All Months)</h4>
-      <ul class="list-group">
-        <li class="list-group-item">Total Shares: <strong id="accShares">0</strong></li>
-        <li class="list-group-item">Total Emergency: <strong id="accEmergency">0</strong></li>
-        <li class="list-group-item">Total Loans: <strong id="accLoans">0</strong></li>
-        <li class="list-group-item">Total Interest: <strong id="accInterest">0</strong></li>
-        <li class="list-group-item">Total Repayments: <strong id="accRepayments">0</strong></li>
-      </ul>
-    </div>
-  </div>
-</div>
-
-  </div>
-
-  <!-- Members Management Modal -->
-  <div class="modal fade" id="membersModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title">Manage Members</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <table class="table table-bordered">
-            <thead class="table-secondary text-center">
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Shares (Ksh)</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="membersList"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Update Member Modal -->
-  <div class="modal fade" id="updateModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <form id="updateForm">
-          <div class="modal-header bg-success text-white">
-            <h5 class="modal-title">Update Member</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <input type="hidden" id="updateMemberId" />
-            <div class="mb-3">
-              <label for="updateName" class="form-label">Name</label>
-              <input type="text" id="updateName" class="form-control" required />
+        <!-- Month Selection -->
+        <div class="card mb-3 p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <label for="monthSelect" class="form-label">Select Month</label>
+                    <select id="monthSelect" class="form-select w-auto">
+                        <option value="February 2025">February 2025 (Share Capital)</option>
+                        <option value="March 2025">March 2025</option>
+                        <option value="April 2025">April 2025</option>
+                        <option value="May 2025">May 2025</option>
+                        <option value="June 2025">June 2025</option>
+                        <option value="July 2025">July 2025</option>
+                        <option value="August 2025">August 2025</option>
+                        <option value="September 2025">September 2025</option>
+                        <option value="October 2025" selected>October 2025</option>
+                    </select>
+                </div>
+                <div>
+                    <button id="manageMembersBtn" class="btn btn-outline-primary me-2">👥 Manage Members</button>
+                    <button id="addMemberBtn" class="btn btn-outline-success me-2">➕ Add Member</button>
+                    <button id="updateRatesBtn" class="btn btn-outline-secondary">📈 Update Rates</button>
+                </div>
             </div>
-            <div class="mb-3">
-              <label for="updateShares" class="form-label">Shares (Ksh)</label>
-              <input type="number" id="updateShares" class="form-control" required />
+        </div>
+
+        <!-- Banking Form -->
+        <form id="bankingForm" class="card p-3 shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle text-center">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Member</th>
+                            <th>Shares (Ksh)</th>
+                            <th>Emergency Fund (Ksh)</th>
+                            <th>Emergency Loan (Ksh)</th>
+                            <th>Loan (Ksh)</th>
+                            <th>Loan Type</th>
+                            <th>Split Label</th>
+                            <th>Repayment (Ksh)</th>
+                            <th>Penalty (Ksh)</th>
+                            <th>Interest (Ksh)</th>
+                            <th>Total Payable (Ksh)</th>
+                            <th>Due Loans</th>
+                        </tr>
+                    </thead>
+                    <tbody id="membersTable"></tbody>
+                </table>
             </div>
-            <div class="mb-3">
-              <label for="updatePassword" class="form-label">Admin Password</label>
-              <input type="password" id="updatePassword" class="form-control" required />
+            <div class="text-end">
+                <button type="submit" class="btn btn-success px-4">💾 Save</button>
             </div>
-          </div>
-          <div class="modal-footer">
-            <button type="submit" class="btn btn-success">✅ Update</button>
-          </div>
         </form>
-      </div>
-    </div>
-  </div>
 
-  <!-- Delete Member Modal -->
-  <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <form id="deleteForm">
-          <div class="modal-header bg-danger text-white">
-            <h5 class="modal-title">Delete Member</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body text-center">
-            <input type="hidden" id="deleteMemberId" />
-            <p class="lead">Are you sure you want to delete this member?</p>
-            <div class="mb-3">
-              <label for="deletePassword" class="form-label">Enter Admin Password</label>
-              <input type="password" id="deletePassword" class="form-control" required />
+        <!-- Totals Summary -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card p-3 shadow-sm">
+                    <h4>📅 Monthly Summary (<span id="monthLabel">October 2025</span>)</h4>
+                    <ul class="list-group">
+                        <li class="list-group-item">Total Shares: <strong id="totalShares">0.00</strong></li>
+                        <li class="list-group-item">Total Emergency Loans: <strong id="totalEmergency">0.00</strong></li>
+                        <li class="list-group-item">Total Loans: <strong id="totalLoans">0.00</strong></li>
+                        <li class="list-group-item">Total Interest: <strong id="totalInterest">0.00</strong></li>
+                        <li class="list-group-item">Total Penalties: <strong id="totalPenalties">0.00</strong></li>
+                        <li class="list-group-item">Total Repayments: <strong id="totalRepayments">0.00</strong></li>
+                    </ul>
+                </div>
             </div>
-          </div>
-          <div class="modal-footer justify-content-center">
-            <button type="submit" class="btn btn-danger">🗑️ Confirm Delete</button>
-          </div>
-        </form>
-      </div>
+            <div class="col-md-6">
+                <div class="card p-3 shadow-sm">
+                    <h4>📊 Accumulative Summary</h4>
+                    <ul class="list-group">
+                        <li class="list-group-item">Total Shares: <strong id="accShares">0.00</strong></li>
+                        <li class="list-group-item">Total Emergency Loans: <strong id="accEmergency">0.00</strong></li>
+                        <li class="list-group-item">Total Loans: <strong id="accLoans">0.00</strong></li>
+                        <li class="list-group-item">Total Interest: <strong id="accInterest">0.00</strong></li>
+                        <li class="list-group-item">Total Repayments: <strong id="accRepayments">0.00</strong></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <!-- Add Shares Modal -->
-<div class="modal fade" id="addSharesModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form id="addSharesForm">
-        <div class="modal-header bg-warning text-dark">
-          <h5 class="modal-title">Add Shares</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <!-- Members Management Modal -->
+    <div class="modal fade" id="membersModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Manage Members</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-bordered">
+                        <thead class="table-secondary text-center">
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Shares (Ksh)</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="membersList"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-        <div class="modal-body">
-          <input type="hidden" id="addSharesMemberId" />
-          <div class="mb-3">
-            <label for="addSharesAmount" class="form-label">Amount (Ksh)</label>
-            <input type="number" id="addSharesAmount" class="form-control" required />
-          </div>
-          <div class="mb-3">
-            <label for="addSharesMonth" class="form-label">Month</label>
-            <select id="addSharesMonth" class="form-select" required>
-              <option>October 2025</option>
-              <option>November 2025</option>
-              <option>December 2025</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label for="addSharesPassword" class="form-label">Admin Password</label>
-            <input type="password" id="addSharesPassword" class="form-control" required />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-warning">💰 Add Shares</button>
-        </div>
-      </form>
     </div>
-  </div>
-</div>
 
+    <!-- Add Member Modal -->
+    <div class="modal fade" id="addMemberModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="addMemberForm">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title">Add New Member</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="addMemberName" class="form-label">Name</label>
+                            <input type="text" id="addMemberName" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="addMemberShares" class="form-label">Initial Shares (Ksh)</label>
+                            <input type="number" id="addMemberShares" class="form-control" min="0" step="1" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="addMemberPassword" class="form-label">Admin Password</label>
+                            <input type="password" id="addMemberPassword" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">➕ Add Member</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-  <!-- JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <!-- Update Member Modal -->
+    <div class="modal fade" id="updateModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="updateForm">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title">Update Member</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="updateMemberId">
+                        <div class="mb-3">
+                            <label for="updateName" class="form-label">Name</label>
+                            <input type="text" id="updateName" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="updateShares" class="form-label">Shares (Ksh)</label>
+                            <input type="number" id="updateShares" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="updatePassword" class="form-label">Admin Password</label>
+                            <input type="password" id="updatePassword" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">✅ Update</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-  <script>
-    // Member Management Modal Logic
-    const manageBtn = document.getElementById("manageMembersBtn");
-    const membersModal = new bootstrap.Modal(document.getElementById("membersModal"));
-    const updateModal = new bootstrap.Modal(document.getElementById("updateModal"));
-    const deleteModal = new bootstrap.Modal(document.getElementById("deleteModal"));
-    const membersList = document.getElementById("membersList");
+    <!-- Delete Member Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="deleteForm">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">Delete Member</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <input type="hidden" id="deleteMemberId">
+                        <p class="lead">Are you sure you want to delete this member?</p>
+                        <div class="mb-3">
+                            <label for="deletePassword" class="form-label">Enter Admin Password</label>
+                            <input type="password" id="deletePassword" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer justify-content-center">
+                        <button type="submit" class="btn btn-danger">🗑️ Confirm Delete</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-    manageBtn.addEventListener("click", async () => {
-      const res = await fetch("/api/members");
-      const data = await res.json();
-      membersList.innerHTML = "";
-      data.forEach((m) => {
-        membersList.innerHTML += `
-          <tr>
-            <td>${m.id}</td>
-            <td>${m.name}</td>
-            <td>${m.shares}</td>
-            <td class="text-center">
-              <button class="btn btn-sm btn-success me-2" onclick="openUpdate(${m.id}, '${m.name}', ${m.shares})">✏️ Edit</button>
-              <button class="btn btn-sm btn-warning me-2" onclick="openAddShares(${m.id}, '${m.name}')">💰 Add Shares</button>
-              <button class="btn btn-sm btn-danger" onclick="openDelete(${m.id})">🗑️ Delete</button>
-            </td>
-          </tr>`;
-      });
-      membersModal.show();
-    });
+    <!-- Add Shares Modal -->
+    <div class="modal fade" id="addSharesModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="addSharesForm">
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title">Add Shares</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="addSharesMemberId">
+                        <div class="mb-3">
+                            <label for="addSharesAmount" class="form-label">Amount (Ksh)</label>
+                            <input type="number" id="addSharesAmount" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="addSharesMonth" class="form-label">Month</label>
+                            <select id="addSharesMonth" class="form-select" required>
+                                <!-- Dynamically populated in main.js -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="addSharesPassword" class="form-label">Admin Password</label>
+                            <input type="password" id="addSharesPassword" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-warning">💰 Add Shares</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-    window.openUpdate = (id, name, shares) => {
-      document.getElementById("updateMemberId").value = id;
-      document.getElementById("updateName").value = name;
-      document.getElementById("updateShares").value = shares;
-      document.getElementById("updatePassword").value = "";
-      updateModal.show();
-    };
+    <!-- Update Interest Rates Modal -->
+    <div class="modal fade" id="updateRatesModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="updateRatesForm">
+                    <div class="modal-header bg-secondary text-white">
+                        <h5 class="modal-title">Update Interest Rates</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="updateRatesMonth" class="form-label">Effective Month</label>
+                            <select id="updateRatesMonth" class="form-select" required>
+                                <option value="February 2025">February 2025</option>
+                                <option value="March 2025">March 2025</option>
+                                <option value="April 2025">April 2025</option>
+                                <option value="May 2025">May 2025</option>
+                                <option value="June 2025">June 2025</option>
+                                <option value="July 2025">July 2025</option>
+                                <option value="August 2025">August 2025</option>
+                                <option value="September 2025">September 2025</option>
+                                <option value="October 2025">October 2025</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="shareLoanRate" class="form-label">Share Loan Rate (%)</label>
+                            <input type="number" id="shareLoanRate" class="form-control" step="0.1" min="0" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="emergencyLoanRate" class="form-label">Emergency Loan Rate (%)</label>
+                            <input type="number" id="emergencyLoanRate" class="form-control" step="0.1" min="0" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="ratesPassword" class="form-label">Admin Password</label>
+                            <input type="password" id="ratesPassword" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-secondary">📈 Update Rates</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-    window.openDelete = (id) => {
-      document.getElementById("deleteMemberId").value = id;
-      document.getElementById("deletePassword").value = "";
-      deleteModal.show();
-    };
-
-    // Update member
-    document.getElementById("updateForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const id = document.getElementById("updateMemberId").value;
-      const name = document.getElementById("updateName").value;
-      const shares = document.getElementById("updateShares").value;
-      const password = document.getElementById("updatePassword").value;
-
-      const res = await fetch(`/api/member/update/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, shares, password }),
-      });
-
-      const data = await res.json();
-      alert(data.message || data.error);
-      if (res.ok) updateModal.hide();
-    });
-
-    // Delete member
-    document.getElementById("deleteForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const id = document.getElementById("deleteMemberId").value;
-      const password = document.getElementById("deletePassword").value;
-
-      const res = await fetch(`/api/member/delete/${id}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-
-      const data = await res.json();
-      alert(data.message || data.error);
-      if (res.ok) deleteModal.hide();
-    });
-
-    const addSharesModal = new bootstrap.Modal(document.getElementById("addSharesModal"));
-
-      window.openAddShares = (id, name) => {
-        document.getElementById("addSharesMemberId").value = id;
-        document.getElementById("addSharesAmount").value = "";
-        document.getElementById("addSharesPassword").value = "";
-        addSharesModal.show();
-      };
-
-      document.getElementById("addSharesForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const member_id = document.getElementById("addSharesMemberId").value;
-        const amount = document.getElementById("addSharesAmount").value;
-        const month = document.getElementById("addSharesMonth").value;
-        const password = document.getElementById("addSharesPassword").value;
-
-        const res = await fetch(`/api/member/add-shares/${member_id}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount, month, password }),
-        });
-
-        const data = await res.json();
-        alert(data.message || data.error);
-        if (res.ok) {
-          addSharesModal.hide();
-          manageBtn.click(); // refresh member list
-        }
-      });
-
-  </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
