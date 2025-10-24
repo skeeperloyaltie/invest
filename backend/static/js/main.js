@@ -37,8 +37,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        await handleSubmit();
-        loadSummaries();
+        if (validateForm()) {
+            await handleSubmit();
+            loadSummaries();
+        }
     });
 
     // Load interest rates for the current month
@@ -48,7 +50,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const res = await fetch(`/api/interest-rates/${month}`);
             if (res.ok) {
                 interestRates = await res.json();
-                // Update loan type dropdowns in existing rows
                 const loanTypeSelects = document.querySelectorAll("#membersTable .loanType");
                 loanTypeSelects.forEach(select => {
                     select.innerHTML = `
@@ -57,7 +58,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         <option value="emergency">Emergency Loan (${(interestRates.emergency_loan_rate * 100).toFixed(0)}%)</option>
                     `;
                 });
-                // Recalculate only valid rows
                 const validRows = Array.from(document.querySelectorAll("#membersTable tr")).filter(row =>
                     row.querySelector(".name") &&
                     row.querySelector(".shares") &&
@@ -69,11 +69,33 @@ document.addEventListener("DOMContentLoaded", () => {
                 );
                 validRows.forEach(calculateRow);
             } else {
-                console.error("Failed to load interest rates:", await res.json());
+                const error = await res.json();
+                console.error("Failed to load interest rates:", error);
+                alert(`Failed to load interest rates: ${error.error || 'Unknown error'}`);
             }
         } catch (e) {
             console.error("Error loading interest rates:", e);
+            alert("Error loading interest rates: " + e.message);
         }
+    }
+
+    // Validate form before submission
+    function validateForm() {
+        const rows = Array.from(tableBody.querySelectorAll("tr")).filter(row =>
+            row.querySelector(".name") && row.querySelector(".name").value
+        );
+        for (const row of rows) {
+            const shares = parseFloat(row.querySelector(".shares").value) || 0;
+            const loan = parseFloat(row.querySelector(".loan").value) || 0;
+            const loanType = row.querySelector(".loanType").value;
+            if (loanType === "share" && loan > 2 * shares) {
+                alert(`Share Loan for ${row.querySelector(".name").value} cannot exceed 2× share capital (${(2 * shares).toFixed(2)})!`);
+                row.querySelector(".loan").value = 0;
+                calculateRow(row);
+                return false;
+            }
+        }
+        return true;
     }
 
     // Member management modal
@@ -81,7 +103,8 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const res = await fetch("/api/members");
             if (!res.ok) {
-                alert("Failed to load members: " + (await res.json()).error);
+                const error = await res.json();
+                alert(`Failed to load members: ${error.error || 'Unknown error'}`);
                 return;
             }
             const data = await res.json();
@@ -286,36 +309,42 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Load members or monthly data
+    // Load members and monthly data
     async function loadMembers() {
         tableBody.innerHTML = "";
         const month = monthSelect.value;
 
         try {
-            // Load interest rates first to ensure they are available for addRow
+            // Load interest rates first
             await loadInterestRates();
 
+            // Fetch members to get names and IDs
+            const resMembers = await fetch("/api/members");
+            if (!resMembers.ok) {
+                const error = await resMembers.json();
+                alert(`Failed to load members: ${error.error || 'Unknown error'}`);
+                return;
+            }
+            members = await resMembers.json();
+
             if (month === "February 2025") {
+                // For February 2025, allow adding new members with editable shares
                 for (let i = 0; i < 8; i++) addRow();
                 resetSummary();
             } else {
-                const res = await fetch("/api/members");
-                if (!res.ok) {
-                    alert("Failed to load members: " + (await res.json()).error);
-                    return;
-                }
-                members = await res.json();
                 if (members.length === 0) {
                     alert("No members found. Please add members using the Manage Members button.");
                     tableBody.innerHTML = "<tr><td colspan='12' class='text-center'>No members available. Add members to proceed.</td></tr>";
-                } else {
-                    members.forEach(m => addRow(m));
-                    await prefillMonthlyData(month);
-                    await loadPendingLoans(month);
-                    updateGroupSummary();
+                    return;
                 }
+                // Add rows for each member with default shares
+                members.forEach(m => addRow({ id: m.id, name: m.name, shares: 0 }));
+                await prefillMonthlyData(month); // Fetch month-specific shares
+                await loadPendingLoans(month);
+                updateGroupSummary();
             }
         } catch (e) {
+            console.error("Error loading members:", e);
             alert("Error loading members: " + e.message);
         }
     }
@@ -324,10 +353,12 @@ document.addEventListener("DOMContentLoaded", () => {
     function addRow(member = null) {
         const row = document.createElement("tr");
         const name = member ? member.name : "";
-        const shares = member ? member.shares : 5000;
+        const shares = 0; // Default to 0; month-specific shares will be set by prefillMonthlyData
+        const id = member ? member.id : null;
+        row.dataset.memberId = id; // Store member ID in row for easier lookup
         row.innerHTML = `
-            <td><input type="text" class="form-control name" value="${name}" ${member ? "readonly" : ""}></td>
-            <td><input type="number" class="form-control shares" value="${shares}" ${member ? "readonly" : ""}></td>
+            <td><input type="text" class="form-control name" value="${name}" ${monthSelect.value === "February 2025" ? "" : "readonly"}></td>
+            <td><input type="number" class="form-control shares" value="${shares}" ${monthSelect.value === "February 2025" ? "" : "readonly"}></td>
             <td><input type="number" class="form-control emergency" value="200" readonly></td>
             <td><input type="number" class="form-control emergencyLoan" value="0"></td>
             <td><input type="number" class="form-control loan" value="0"></td>
@@ -353,7 +384,8 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const res = await fetch(`/api/active-loans/${month}`);
             if (!res.ok) {
-                console.error("Failed to load pending loans:", await res.json());
+                const error = await res.json();
+                console.error("Failed to load pending loans:", error);
                 return;
             }
             const loans = await res.json();
@@ -362,11 +394,17 @@ document.addEventListener("DOMContentLoaded", () => {
                     r => r.querySelector(".name") && r.querySelector(".name").value === loan.name
                 );
                 if (row && loan.status === "Pending") {
-                    row.querySelector(".loan").value = loan.amount;
-                    row.querySelector(".loanType").value = loan.loan_type;
+                    const shares = parseFloat(row.querySelector(".shares").value) || 0;
+                    if (loan.loan_type === "share" && loan.amount > 2 * shares) {
+                        console.warn(`Pending loan for ${loan.name} exceeds 2× shares (${shares})`);
+                        row.querySelector(".due-loans").innerHTML = `<span class="badge bg-danger">Invalid Loan: Exceeds 2× shares</span>`;
+                    } else {
+                        row.querySelector(".loan").value = loan.amount;
+                        row.querySelector(".loanType").value = loan.loan_type;
+                        row.querySelector(".due-loans").innerHTML = `<span class="badge bg-warning">Due: ${loan.due_month}</span>`;
+                        row.classList.add("table-warning");
+                    }
                     calculateRow(row);
-                    row.querySelector(".due-loans").innerHTML = `<span class="badge bg-warning">Due: ${loan.due_month}</span>`;
-                    row.classList.add("table-warning");
                 }
             });
         } catch (e) {
@@ -379,35 +417,67 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const res = await fetch(`/api/monthly-data/${month}`);
             if (!res.ok) {
-                console.error("Failed to load monthly data:", await res.json());
+                const error = await res.json();
+                console.error("Failed to load monthly data:", error);
+                alert(`Failed to load monthly data: ${error.error || 'Unknown error'}`);
                 return;
             }
             const records = await res.json();
+            console.log("Monthly data:", records); // Debug: Log fetched records
+            // Ensure all members have a row
+            members.forEach(member => {
+                const row = [...tableBody.querySelectorAll("tr")].find(
+                    tr => tr.dataset.memberId == member.id
+                );
+                if (!row) {
+                    addRow({ id: member.id, name: member.name, shares: 0 });
+                }
+            });
+            // Update rows with monthly data
             records.forEach(r => {
                 const row = [...tableBody.querySelectorAll("tr")].find(
-                    tr => members.find(m => m.id === r.id)?.name === tr.querySelector(".name")?.value
+                    tr => tr.dataset.memberId == r.id
                 );
                 if (row) {
-                    row.querySelector(".shares").value = r.shares;
-                    row.querySelector(".emergencyLoan").value = r.emergency_loan;
-                    row.querySelector(".loan").value = r.loan;
-                    row.querySelector(".loanType").value = r.loan_type;
-                    row.querySelector(".repayment").value = r.repayment;
-                    row.querySelector(".penalty").value = r.penalty;
-                    row.querySelector(".interest").textContent = r.interest.toFixed(2);
-                    row.querySelector(".total").textContent = r.total.toFixed(2);
-                    row.querySelector(".splitLabel").value = r.split_label;
+                    row.querySelector(".shares").value = r.shares || 0;
+                    row.querySelector(".emergencyLoan").value = r.emergency_loan || 0;
+                    row.querySelector(".loan").value = r.loan || 0;
+                    row.querySelector(".loanType").value = r.loan_type || "none";
+                    row.querySelector(".repayment").value = r.repayment || 0;
+                    row.querySelector(".penalty").value = r.penalty || 0;
+                    row.querySelector(".interest").textContent = (r.interest || 0).toFixed(2);
+                    row.querySelector(".total").textContent = (r.total || 0).toFixed(2);
+                    row.querySelector(".splitLabel").value = r.split_label || "Main";
                     calculateRow(row); // Recalculate to ensure consistency
                 }
             });
+            // Validate loans after prefilling
+            validateAllRows();
         } catch (e) {
             console.error("Error loading monthly data:", e);
+            alert("Error loading monthly data: " + e.message);
         }
+    }
+
+    // Validate all rows for share loan limits
+    function validateAllRows() {
+        const rows = Array.from(tableBody.querySelectorAll("tr")).filter(row =>
+            row.querySelector(".name") && row.querySelector(".name").value
+        );
+        rows.forEach(row => {
+            const shares = parseFloat(row.querySelector(".shares").value) || 0;
+            const loan = parseFloat(row.querySelector(".loan").value) || 0;
+            const loanType = row.querySelector(".loanType").value;
+            if (loanType === "share" && loan > 2 * shares) {
+                alert(`Share Loan for ${row.querySelector(".name").value} exceeds 2× share capital (${(2 * shares).toFixed(2)})!`);
+                row.querySelector(".loan").value = 0;
+                calculateRow(row);
+            }
+        });
     }
 
     // Calculate row totals
     function calculateRow(row) {
-        // Check if all required elements exist
         const sharesInput = row.querySelector(".shares");
         const loanInput = row.querySelector(".loan");
         const emergencyLoanInput = row.querySelector(".emergencyLoan");
@@ -430,13 +500,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const loanType = loanTypeSelect.value;
 
         if (loanType === "share" && loan > 2 * shares) {
-            alert("Share Loan cannot exceed 2× share capital!");
+            alert(`Share Loan for ${row.querySelector(".name").value} cannot exceed 2× share capital (${(2 * shares).toFixed(2)})!`);
             loanInput.value = 0;
             return;
         }
 
         const interestRate = loanType === "share" ? interestRates.share_loan_rate : loanType === "emergency" ? interestRates.emergency_loan_rate : 0;
-        const interest = (loan + emergencyLoan) * interestRate;
+        const interest = loanType === "none" ? 0 : (loanType === "share" ? loan : emergencyLoan) * interestRate;
         const total = loan + emergencyLoan + interest + penalty - repayment;
 
         interestCell.textContent = interest.toFixed(2);
@@ -458,7 +528,7 @@ document.addEventListener("DOMContentLoaded", () => {
             row.querySelector(".name") && row.querySelector(".name").value
         );
         const data = rows.map(row => ({
-            id: members.find(m => m.name === row.querySelector(".name").value)?.id,
+            id: row.dataset.memberId,
             name: row.querySelector(".name").value,
             shares: parseFloat(row.querySelector(".shares").value) || 0,
             emergencyLoan: parseFloat(row.querySelector(".emergencyLoan").value) || 0,
@@ -480,6 +550,9 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             const msg = await res.json();
             alert(res.ok ? msg.message : msg.error);
+            if (res.ok) {
+                loadMembers(); // Refresh table to reflect saved data
+            }
         } catch (e) {
             alert("Error saving data: " + e.message);
         }
@@ -524,6 +597,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 summaryElements.interest.textContent = data.interest.toFixed(2);
                 summaryElements.repayments.textContent = data.repayment.toFixed(2);
                 summaryElements.penalties.textContent = data.penalty.toFixed(2);
+            } else {
+                const error = await resMonth.json();
+                console.error(`Failed to load summary for ${month}:`, error);
             }
 
             const resTotal = await fetch("/api/summary/total");
@@ -534,6 +610,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 summaryElements.accLoans.textContent = data.total_loans.toFixed(2);
                 summaryElements.accInterest.textContent = data.total_interest.toFixed(2);
                 summaryElements.accRepayments.textContent = data.total_repayments.toFixed(2);
+            } else {
+                const error = await resTotal.json();
+                console.error("Failed to load total summary:", error);
             }
         } catch (e) {
             console.error("Error loading summaries:", e);

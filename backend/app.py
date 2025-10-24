@@ -41,7 +41,8 @@ def create_tables():
             repayment NUMERIC DEFAULT 0,
             penalty NUMERIC DEFAULT 0,
             total NUMERIC DEFAULT 0,
-            split_label VARCHAR(50) DEFAULT 'Main'
+            split_label VARCHAR(50) DEFAULT 'Main',
+            UNIQUE (member_id, month)
         );
     """)
     cur.execute("""
@@ -59,7 +60,7 @@ def create_tables():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS interest_rates (
             id SERIAL PRIMARY KEY,
-            month VARCHAR(50),
+            month VARCHAR(50) UNIQUE,
             share_loan_rate NUMERIC DEFAULT 0.2,
             emergency_loan_rate NUMERIC DEFAULT 0.1
         );
@@ -111,15 +112,15 @@ def add_member():
         cur.execute("INSERT INTO members (name, shares) VALUES (%s, %s) RETURNING id", (name, shares))
         member_id = cur.fetchone()[0]
         
-        # Add initial monthly record for the current month
         all_months = [
             "February 2025", "March 2025", "April 2025", "May 2025", "June 2025",
             "July 2025", "August 2025", "September 2025", "October 2025"
         ]
-        for month in all_months[all_months.index("February 2025"):]:
+        for month in all_months:
             cur.execute("""
                 INSERT INTO monthly_records (member_id, month, shares, split_label)
                 VALUES (%s, %s, %s, %s)
+                ON CONFLICT (member_id, month) DO NOTHING
             """, (member_id, month, shares, "Main"))
         
         conn.commit()
@@ -141,26 +142,35 @@ def init_february():
         for member in members:
             name = member.get("name")
             shares = float(member.get("shares", 0))
-            loan = 0
-            interest = 0
-            if shares < 5000:
-                loan = 5000 - shares
-                interest = loan * 0.2
-                shares = 5000
-            cur.execute("INSERT INTO members (name, shares) VALUES (%s, %s) RETURNING id", (name, shares))
+            loan = float(member.get("loan", 0))
+            loan_type = member.get("loanType", "none")
+            interest = float(member.get("interest", 0))
+            
+            # Validate share loan
+            if loan_type == "share" and loan > 2 * shares:
+                return jsonify({"error": f"Share loan for {name} exceeds 2× share capital ({2 * shares})"}), 400
+            
+            cur.execute("INSERT INTO members (name, shares) VALUES (%s, %s) ON CONFLICT (name) DO UPDATE SET shares = EXCLUDED.shares RETURNING id", (name, shares))
             member_id = cur.fetchone()[0]
             
             if loan > 0:
-                due_month = (datetime(2025, 2, 1) + timedelta(days=60)).strftime("%B %Y")
+                months = 5 if loan > 30000 else 2
+                due_month = (datetime(2025, 2, 1) + timedelta(days=30 * months)).strftime("%B %Y")
                 cur.execute("""
                     INSERT INTO loan_repayments (member_id, amount, interest, loan_type, month_issued, due_month)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                """, (member_id, loan, interest, "share", "February 2025", due_month))
+                """, (member_id, loan, interest, loan_type, "February 2025", due_month))
             
             cur.execute("""
                 INSERT INTO monthly_records (member_id, month, shares, loan, loan_type, interest, total)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (member_id, "February 2025", shares, loan, "share" if loan > 0 else "none", interest, loan + interest))
+                ON CONFLICT (member_id, month) DO UPDATE SET
+                    shares = EXCLUDED.shares,
+                    loan = EXCLUDED.loan,
+                    loan_type = EXCLUDED.loan_type,
+                    interest = EXCLUDED.interest,
+                    total = EXCLUDED.total
+            """, (member_id, "February 2025", shares, loan, loan_type, interest, loan + interest))
         
         conn.commit()
         return jsonify({"message": "February 2025 initialized"}), 200
@@ -175,7 +185,6 @@ def save_monthly_data():
     month = data.get("month")
     members = data.get("members", [])
     
-    # Get interest rates for the current month
     interest_rates = get_interest_rates(month)
     share_loan_rate = interest_rates["share_loan_rate"]
     emergency_loan_rate = interest_rates["emergency_loan_rate"]
@@ -191,18 +200,32 @@ def save_monthly_data():
             penalty = float(m.get("penalty", 0))
             split_label = m.get("splitLabel", "Main")
             
+            # Validate share loan
+            if loan_type == "share" and loan > 2 * shares:
+                return jsonify({"error": f"Share loan for member ID {member_id} exceeds 2× share capital ({2 * shares})"}), 400
+            
             interest_rate = share_loan_rate if loan_type == "share" else emergency_loan_rate if loan_type == "emergency" else 0
-            interest = (loan + emergency_loan) * interest_rate
+            interest = 0 if loan_type == "none" else (loan if loan_type == "share" else emergency_loan) * interest_rate
             total = loan + emergency_loan + interest + penalty - repayment
             
             cur.execute("""
                 INSERT INTO monthly_records
                 (member_id, month, shares, loan, emergency_loan, loan_type, repayment, interest, penalty, total, split_label)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (member_id, month) DO UPDATE SET
+                    shares = EXCLUDED.shares,
+                    loan = EXCLUDED.loan,
+                    emergency_loan = EXCLUDED.emergency_loan,
+                    loan_type = EXCLUDED.loan_type,
+                    repayment = EXCLUDED.repayment,
+                    interest = EXCLUDED.interest,
+                    penalty = EXCLUDED.penalty,
+                    total = EXCLUDED.total,
+                    split_label = EXCLUDED.split_label
             """, (member_id, month, shares, loan, emergency_loan, loan_type, repayment, interest, penalty, total, split_label))
             
             if loan > 0 or emergency_loan > 0:
-                amount = loan + emergency_loan
+                amount = loan if loan_type == "share" else emergency_loan
                 months = 5 if amount > 30000 else 2
                 due_date = (datetime.strptime(month, "%B %Y") + timedelta(days=30 * months)).strftime("%B %Y")
                 cur.execute("""
@@ -227,14 +250,24 @@ def save_monthly_data():
 def get_monthly_data(month):
     try:
         cur.execute("""
-            SELECT member_id, shares, loan, emergency_loan, loan_type, repayment, interest, penalty, total, split_label
-            FROM monthly_records WHERE month = %s
+            SELECT m.id, m.name, mr.shares, mr.loan, mr.emergency_loan, mr.loan_type, mr.repayment, mr.interest, mr.penalty, mr.total, mr.split_label
+            FROM monthly_records mr
+            JOIN members m ON mr.member_id = m.id
+            WHERE mr.month = %s
         """, (month,))
         rows = cur.fetchall()
         data = [{
-            "id": r[0], "shares": float(r[1]), "loan": float(r[2]), "emergency_loan": float(r[3]),
-            "loan_type": r[4], "repayment": float(r[5]), "interest": float(r[6]), "penalty": float(r[7]),
-            "total": float(r[8]), "split_label": r[9]
+            "id": r[0],
+            "name": r[1],
+            "shares": float(r[2]) if r[2] is not None else 0,
+            "loan": float(r[3]) if r[3] is not None else 0,
+            "emergency_loan": float(r[4]) if r[4] is not None else 0,
+            "loan_type": r[5] or "none",
+            "repayment": float(r[6]) if r[6] is not None else 0,
+            "interest": float(r[7]) if r[7] is not None else 0,
+            "penalty": float(r[8]) if r[8] is not None else 0,
+            "total": float(r[9]) if r[9] is not None else 0,
+            "split_label": r[10] or "Main"
         } for r in rows]
         return jsonify(data)
     except Exception as e:
@@ -277,15 +310,22 @@ def monthly_summary(month):
 @app.route("/api/summary/total", methods=["GET"])
 def total_summary():
     try:
+        cur.execute("SELECT COALESCE(SUM(shares), 0) FROM members")
+        total_shares = float(cur.fetchone()[0])
+        
         cur.execute("""
-            SELECT COALESCE(SUM(shares), 0), COALESCE(SUM(loan), 0), COALESCE(SUM(emergency_loan), 0),
+            SELECT COALESCE(SUM(loan), 0), COALESCE(SUM(emergency_loan), 0),
                    COALESCE(SUM(interest), 0), COALESCE(SUM(repayment), 0), COALESCE(SUM(penalty), 0)
             FROM monthly_records
         """)
-        s, l, e, i, r, p = cur.fetchone()
+        l, e, i, r, p = cur.fetchone()
         return jsonify({
-            "total_shares": float(s), "total_loans": float(l), "total_emergency_loans": float(e),
-            "total_interest": float(i), "total_repayments": float(r), "total_penalties": float(p)
+            "total_shares": total_shares,
+            "total_loans": float(l),
+            "total_emergency_loans": float(e),
+            "total_interest": float(i),
+            "total_repayments": float(r),
+            "total_penalties": float(p)
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -308,8 +348,8 @@ def get_interest_rates(month):
         """, (tuple(all_months[:month_index + 1]), all_months))
         result = cur.fetchone()
         return {
-            "share_loan_rate": result[0] if result else 0.2,
-            "emergency_loan_rate": result[1] if result else 0.1
+            "share_loan_rate": float(result[0]) if result else 0.2,
+            "emergency_loan_rate": float(result[1]) if result else 0.1
         }
     except Exception as e:
         return {"share_loan_rate": 0.2, "emergency_loan_rate": 0.1}
@@ -332,11 +372,12 @@ def update_interest_rates():
         cur.execute("""
             INSERT INTO interest_rates (month, share_loan_rate, emergency_loan_rate)
             VALUES (%s, %s, %s)
-            ON CONFLICT (month)
-            DO UPDATE SET share_loan_rate = EXCLUDED.share_loan_rate, emergency_loan_rate = EXCLUDED.emergency_loan_rate
+            ON CONFLICT (month) DO UPDATE SET
+                share_loan_rate = EXCLUDED.share_loan_rate,
+                emergency_loan_rate = EXCLUDED.emergency_loan_rate
         """, (month, share_loan_rate, emergency_loan_rate))
         conn.commit()
-        return jsonify({"message": f"Interest rates updated for {month} and subsequent months"}), 200
+        return jsonify({"message": f"Interest rates updated for {month}"}), 200
     except Exception as e:
         conn.rollback()
         return jsonify({"error": str(e)}), 500
@@ -378,6 +419,8 @@ def delete_member(id):
         return jsonify({"error": "Invalid password"}), 403
     
     try:
+        cur.execute("DELETE FROM monthly_records WHERE member_id = %s", (id,))
+        cur.execute("DELETE FROM loan_repayments WHERE member_id = %s", (id,))
         cur.execute("DELETE FROM members WHERE id = %s", (id,))
         conn.commit()
         return jsonify({"message": "Member deleted"}), 200
@@ -401,17 +444,19 @@ def add_shares(member_id):
         # Update shares in members table
         cur.execute("UPDATE members SET shares = shares + %s WHERE id = %s", (amount, member_id))
         
-        # Update monthly_records for the selected month and all subsequent months
-        cur.execute("SELECT month FROM monthly_records WHERE member_id = %s GROUP BY month", (member_id,))
-        existing_months = [row[0] for row in cur.fetchall()]
-        
+        # Update or insert monthly_records for the selected month and all subsequent months
         all_months = [
-            "March 2025", "April 2025", "May 2025", "June 2025",
+            "February 2025", "March 2025", "April 2025", "May 2025", "June 2025",
             "July 2025", "August 2025", "September 2025", "October 2025"
         ]
+        month_index = all_months.index(month)
         
-        for m in all_months[all_months.index(month):]:
-            if m in existing_months:
+        for m in all_months[month_index:]:
+            cur.execute("""
+                SELECT shares FROM monthly_records WHERE member_id = %s AND month = %s
+            """, (member_id, m))
+            existing = cur.fetchone()
+            if existing:
                 cur.execute("""
                     UPDATE monthly_records SET shares = shares + %s
                     WHERE member_id = %s AND month = %s
